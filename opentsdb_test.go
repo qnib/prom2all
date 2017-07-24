@@ -56,6 +56,31 @@ func TestFamily_ToOpenTSDBv1(t *testing.T) {
 	x1 := prom2json.NewFamily(mf1)
 	got := ToOpenTSDBv1(x1)
 	p := `put counter1 [0-9]+ 1.000000 tag1=abc tag2=def\nput counter1 [0-9]+ 2.000000`
-	_, err := regexp.MatchString(p, got)
-	assert.NoError(t, err, "Should match OpenTSDBv1 string")
+	for _,g := range got {
+		_, err := regexp.MatchString(p, g)
+		assert.NoError(t, err, "Should match OpenTSDBv1 string")
+	}
+}
+
+func TestSanitizeTags(t *testing.T) {
+	got, err := SanitizeTags("tag1", "abcdf")
+	assert.NoError(t, err, "fine")
+	assert.Equal(t, "tag1=abcdf", got)
+	_, err = SanitizeTags("tag2", "abcdf.asda,asd")
+	assert.Error(t, err, "fine")
+	_, err = SanitizeTags("abcdf.asda,asd", "val3")
+	assert.Error(t, err, "fine")
+}
+
+func TestLabelToString(t *testing.T) {
+	_, err := LabelToString(map[string]string{})
+	assert.Error(t, err, "Empty map")
+	got, err := LabelToString(map[string]string{"tag1": "val1"})
+	assert.NoError(t, err, "fine")
+	assert.Equal(t, []string{"tag1=val1"}, got)
+	got, err = LabelToString(map[string]string{"tag1": "val1", "tag2": "abcdf.asda,asd"})
+	assert.NoError(t, err, "fine")
+	assert.Equal(t, []string{"tag1=val1"}, got)
+	_, err = LabelToString(map[string]string{"tag2": "abcdf.asda,asd"})
+	assert.Error(t, err, "All k/v pairs fail")
 }
